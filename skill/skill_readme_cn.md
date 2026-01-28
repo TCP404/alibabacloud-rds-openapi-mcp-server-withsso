@@ -129,11 +129,8 @@ claude
 你：查询杭州地域有哪些 MySQL 实例？
 Claude：[调用 RDS Copilot 并返回结果]
 
-你：帮我优化这条 SQL：SELECT * FROM users WHERE status=1 ORDER BY created_at
+你：针对rm-xxx实例帮我分析和优化这条 SQL：SELECT * FROM users WHERE status=1 ORDER BY created_at
 Claude：[调用 RDS Copilot 获取 SQL 优化建议]
-
-你：继续分析这条 SQL 的性能瓶颈
-Claude：[使用会话 ID 进行多轮对话]
 ```
 
 ## 常见问题

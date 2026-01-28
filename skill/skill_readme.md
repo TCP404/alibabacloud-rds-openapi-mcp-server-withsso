@@ -124,11 +124,8 @@ Ask RDS-related questions directly in Claude conversations:
 You: What MySQL instances are available in Hangzhou region?
 Claude: [Calls RDS Copilot and returns results]
 
-You: Help me optimize this SQL: SELECT * FROM users WHERE status=1 ORDER BY created_at
+You: Help me for rm-xxx optimize this SQL: SELECT * FROM users WHERE status=1 ORDER BY created_at
 Claude: [Calls RDS Copilot for SQL optimization suggestions]
-
-You: Continue analyzing the performance bottlenecks of this SQL
-Claude: [Uses session ID for multi-turn conversation]
 ```
 
 ## Troubleshooting
