@@ -182,6 +182,11 @@ If no toolset is specified, the default `rds` group is loaded automatically.
 ### Resources
 None at this time
 
+### Skills
+This project supports extending the capabilities of RDS Copilot through Skills. Skills are predefined capability modules that enable AI assistants to perform more complex tasks.
+
+For detailed information on using Skills, please refer to: [Skills Documentation](./skill/skill_readme.md)
+
 ### Prompts
 ```markdown
 # Role  
