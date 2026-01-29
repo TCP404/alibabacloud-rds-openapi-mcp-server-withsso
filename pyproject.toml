@@ -6,14 +6,15 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "alibabacloud-bssopenapi20171214>=5.0.0",
+    "alibabacloud-credentials>=0.3.5",
     "alibabacloud-das20200116==2.7.1",
     "alibabacloud-rds20140815>=11.0.0",
     "alibabacloud-vpc20160428>=6.11.4",
     "httpx>=0.28.1",
     "mcp[cli]>=1.10.1",
-#    "psycopg2>=2.9.10",
+    #    "psycopg2>=2.9.10",
     "pymysql>=1.1.1",
-    "pyodbc>=5.2.0",
+    #    "pyodbc>=5.2.0",  # 暂时注释，如需SQL Server支持需安装ODBC驱动
 ]
 
 license = "Apache-2.0"
@@ -29,8 +30,37 @@ Documentation = "https://github.com/aliyun/alibabacloud-rds-openapi-mcp-server/"
 Source = "https://github.com/aliyun/alibabacloud-rds-openapi-mcp-server.git"
 "Bug Tracker" = "https://github.com/aliyun/alibabacloud-rds-openapi-mcp-server/issues"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/alibabacloud_rds_openapi_mcp_server"]
 
+[tool.hatch.build]
+include = [
+    "src/**/*.py",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
+exclude = [
+    "**/*.pyc",
+    "**/__pycache__",
+    "**/*.pyo",
+    "**/*.pyd",
+    "**/*.png",
+    ".git",
+    ".env",
+    ".gitignore",
+    "*.so",
+    "*.dylib",
+    "*.dll",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project.scripts]
-alibabacloud-rds-openapi-mcp-server = "alibabacloud_rds_openapi_mcp_server.server:main"
+mcp-server-aliyun-rds = "alibabacloud_rds_openapi_mcp_server.server:main"

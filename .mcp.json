@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "aliyun-rds": {
+        "type": "stdio",
+        "command": "mcp-server-aliyun-rds",
+        "args": [],
+        "env": {
+            "ALIBABA_CLOUD_PROFILE": "siem",
+            "ALIBABA_CLOUD_REGION_ID": "us-west-1"
+        }
+    }
+  }
+}

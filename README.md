@@ -8,6 +8,43 @@ MCP server for RDS Services via OPENAPI
 2. Install Python using `uv python install 3.12`
 3. Alibaba Cloud credentials with access to Alibaba Cloud RDS services
 
+## Authentication Methods
+
+This MCP server supports multiple authentication methods through the Alibaba Cloud Credentials SDK:
+
+| Method | Description |
+|--------|-------------|
+| **Static AK/SK** | Use `ALIBABA_CLOUD_ACCESS_KEY_ID` and `ALIBABA_CLOUD_ACCESS_KEY_SECRET` environment variables |
+| **STS Token** | Use static AK/SK with `ALIBABA_CLOUD_SECURITY_TOKEN` for temporary credentials |
+| **CloudSSO** | Use Alibaba Cloud SSO credentials from aliyun CLI config |
+| **ECS RAM Role** | Automatically retrieve credentials from ECS instance metadata |
+| **OIDC** | Use OpenID Connect for federated authentication |
+| **RAM Role ARN** | Assume a RAM role using existing credentials |
+
+### Using CloudSSO (Recommended for Enterprise)
+
+1. Configure CloudSSO using aliyun CLI:
+```bash
+aliyun configure --mode CloudSSO --profile your-profile-name
+```
+
+2. Set the profile name in environment:
+```bash
+export ALIBABA_CLOUD_PROFILE=your-profile-name
+```
+
+3. Start the MCP server without AK/SK - it will automatically use CloudSSO credentials:
+```bash
+uvx alibabacloud-rds-openapi-mcp-server@latest
+```
+
+### Credential Chain Priority
+
+When no explicit credentials are provided, the server uses the following priority:
+1. Request headers (ak, sk, sts)
+2. Environment variables (`ALIBABA_CLOUD_ACCESS_KEY_ID`, `ALIBABA_CLOUD_ACCESS_KEY_SECRET`)
+3. Alibaba Cloud Credentials SDK default chain (including CloudSSO, ECS RAM Role, etc.)
+
 ## Quick Start
 ### Using [cherry-studio](https://github.com/CherryHQ/cherry-studio) (Recommended)
 1. Download and install cherry-studio

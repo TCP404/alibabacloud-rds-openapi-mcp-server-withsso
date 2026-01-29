@@ -1661,13 +1661,14 @@ async def health_check(request: Request) -> JSONResponse:
             "enabled_groups": _parse_groups_from_source(os.getenv("MCP_TOOLSETS")),
         }
 
-        # Optional: Add more detailed health checks here
-        # For example, check if essential environment variables are set
-        essential_vars = ["ALIBABA_CLOUD_ACCESS_KEY_ID", "ALIBABA_CLOUD_ACCESS_KEY_SECRET"]
-        missing_vars = [var for var in essential_vars if not os.getenv(var)]
+        # Check credentials availability
+        # Note: Environment variables are optional when using CloudSSO or other credential providers
+        ak_vars = ["ALIBABA_CLOUD_ACCESS_KEY_ID", "ALIBABA_CLOUD_ACCESS_KEY_SECRET"]
+        has_ak = all(os.getenv(var) for var in ak_vars)
+        has_profile = bool(os.getenv("ALIBABA_CLOUD_PROFILE"))
 
-        if missing_vars:
-            health_status["warnings"] = f"Missing environment variables: {', '.join(missing_vars)}"
+        if not has_ak and not has_profile:
+            health_status["info"] = "Using default credential chain (CloudSSO, ECS RAM Role, etc.)"
 
         return JSONResponse(
             content=health_status,

@@ -7,6 +7,43 @@ RDS OpenAPI MCP服务。
 2. 使用`uv python install 3.12`安装Python
 3. 具有阿里云RDS服务访问权限的账号凭证
 
+## 认证方式
+
+本 MCP 服务器通过阿里云 Credentials SDK 支持多种认证方式：
+
+| 方式 | 说明 |
+|------|------|
+| **静态 AK/SK** | 使用 `ALIBABA_CLOUD_ACCESS_KEY_ID` 和 `ALIBABA_CLOUD_ACCESS_KEY_SECRET` 环境变量 |
+| **STS Token** | 使用静态 AK/SK 配合 `ALIBABA_CLOUD_SECURITY_TOKEN` 获取临时凭证 |
+| **CloudSSO** | 使用阿里云 SSO 凭证（来自 aliyun CLI 配置） |
+| **ECS RAM Role** | 从 ECS 实例元数据自动获取凭证 |
+| **OIDC** | 使用 OpenID Connect 进行联合身份认证 |
+| **RAM Role ARN** | 使用现有凭证扮演 RAM 角色 |
+
+### 使用 CloudSSO（推荐企业用户）
+
+1. 使用 aliyun CLI 配置 CloudSSO：
+```bash
+aliyun configure --mode CloudSSO --profile your-profile-name
+```
+
+2. 在环境变量中设置 profile 名称：
+```bash
+export ALIBABA_CLOUD_PROFILE=your-profile-name
+```
+
+3. 启动 MCP 服务器时无需 AK/SK - 将自动使用 CloudSSO 凭证：
+```bash
+uvx alibabacloud-rds-openapi-mcp-server@latest
+```
+
+### 凭证链优先级
+
+当未提供显式凭证时，服务器按以下优先级获取凭证：
+1. 请求头（ak、sk、sts）
+2. 环境变量（`ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`）
+3. 阿里云 Credentials SDK 默认凭证链（包括 CloudSSO、ECS RAM Role 等）
+
 ## 快速开始
 ### 使用[cherry-studio](https://github.com/CherryHQ/cherry-studio)（推荐）
 1. [下载](https://docs.cherry-ai.com/cherry-studio/download)并安装cherry-studio

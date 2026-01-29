@@ -8,6 +8,8 @@ from functools import wraps
 import alibabacloud_tea_openapi.models as OpenApiModels
 from alibabacloud_tea_util.models import RuntimeOptions
 
+from alibabacloud_rds_openapi_mcp_server.utils import get_credentials
+
 try:
     from alibabacloud_rds20140815.client import Client as RdsApiClient
 except ImportError:
@@ -86,10 +88,11 @@ class AliyunServiceGateway:
     """
 
     def __init__(self, region_id: str):
+        ak, sk, sts = get_credentials()
         self._config = OpenApiModels.Config(
-            access_key_id=os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_ID'),
-            access_key_secret=os.environ.get('ALIBABA_CLOUD_ACCESS_KEY_SECRET'),
-            security_token=os.environ.get('ALIBABA_CLOUD_SECURITY_TOKEN'),
+            access_key_id=ak,
+            access_key_secret=sk,
+            security_token=sts,
             region_id=region_id
         )
         self._config.validate()

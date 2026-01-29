@@ -7,10 +7,98 @@ import tzlocal
 import time
 
 from alibabacloud_bssopenapi20171214.client import Client as BssOpenApi20171214Client
+from alibabacloud_credentials.provider import (
+    StaticAKCredentialsProvider,
+    StaticSTSCredentialsProvider,
+    EcsRamRoleCredentialsProvider,
+    RamRoleArnCredentialsProvider,
+    OIDCRoleArnCredentialsProvider,
+)
+from alibabacloud_credentials.exceptions import CredentialException
+from alibabacloud_credentials import provider
 from alibabacloud_rds20140815.client import Client as RdsClient
 from alibabacloud_tea_openapi.models import Config
 from alibabacloud_vpc20160428.client import Client as VpcClient
 from alibabacloud_das20200116.client import Client as DAS20200116Client
+
+
+def _get_credentials_provider(self, config, profile_name):
+    """
+    Get credentials provider based on profile configuration.
+    Supports multiple authentication modes: AK, StsToken, CloudSSO, RamRoleArn, EcsRamRole, OIDC, ChainableRamRoleArn.
+    """
+    if profile_name is None or profile_name == '':
+        raise CredentialException('invalid profile name')
+
+    profiles = config.get('profiles', [])
+
+    if not profiles:
+        raise CredentialException(f"unable to get profile with '{profile_name}' from cli credentials file.")
+
+    for profile in profiles:
+        if profile.get('name') is not None and profile['name'] == profile_name:
+            mode = profile.get('mode')
+            if mode == "AK":
+                return StaticAKCredentialsProvider(
+                    access_key_id=profile.get('access_key_id'),
+                    access_key_secret=profile.get('access_key_secret')
+                )
+            elif mode == "StsToken" or mode == "CloudSSO":
+                return StaticSTSCredentialsProvider(
+                    access_key_id=profile.get('access_key_id'),
+                    access_key_secret=profile.get('access_key_secret'),
+                    security_token=profile.get('sts_token')
+                )
+            elif mode == "RamRoleArn":
+                pre_provider = StaticAKCredentialsProvider(
+                    access_key_id=profile.get('access_key_id'),
+                    access_key_secret=profile.get('access_key_secret')
+                )
+                return RamRoleArnCredentialsProvider(
+                    credentials_provider=pre_provider,
+                    role_arn=profile.get('ram_role_arn'),
+                    role_session_name=profile.get('ram_session_name'),
+                    duration_seconds=profile.get('expired_seconds'),
+                    policy=profile.get('policy'),
+                    external_id=profile.get('external_id'),
+                    sts_region_id=profile.get('sts_region'),
+                    enable_vpc=profile.get('enable_vpc'),
+                )
+            elif mode == "EcsRamRole":
+                return EcsRamRoleCredentialsProvider(
+                    role_name=profile.get('ram_role_name')
+                )
+            elif mode == "OIDC":
+                return OIDCRoleArnCredentialsProvider(
+                    role_arn=profile.get('ram_role_arn'),
+                    oidc_provider_arn=profile.get('oidc_provider_arn'),
+                    oidc_token_file_path=profile.get('oidc_token_file'),
+                    role_session_name=profile.get('role_session_name'),
+                    duration_seconds=profile.get('expired_seconds'),
+                    policy=profile.get('policy'),
+                    sts_region_id=profile.get('sts_region'),
+                    enable_vpc=profile.get('enable_vpc'),
+                )
+            elif mode == "ChainableRamRoleArn":
+                previous_provider = self._get_credentials_provider(config, profile.get('source_profile'))
+                return RamRoleArnCredentialsProvider(
+                    credentials_provider=previous_provider,
+                    role_arn=profile.get('ram_role_arn'),
+                    role_session_name=profile.get('ram_session_name'),
+                    duration_seconds=profile.get('expired_seconds'),
+                    policy=profile.get('policy'),
+                    external_id=profile.get('external_id'),
+                    sts_region_id=profile.get('sts_region'),
+                    enable_vpc=profile.get('enable_vpc'),
+                )
+            else:
+                raise CredentialException(f"unsupported profile mode '{mode}' from cli credentials file.")
+
+    raise CredentialException(f"unable to get profile with '{profile_name}' from cli credentials file.")
+
+
+# Monkey patch CLIProfileCredentialsProvider to support CloudSSO and other modes
+provider.cli_profile.CLIProfileCredentialsProvider._get_credentials_provider = _get_credentials_provider
 
 current_request_headers: ContextVar[dict] = ContextVar("current_request_headers", default={})
 
@@ -184,6 +272,10 @@ def get_rds_account():
 
 
 def get_aksk():
+    """
+    Get credentials from environment variables or request headers.
+    Supports both static AK/SK and STS Token.
+    """
     ak = os.getenv('ALIBABA_CLOUD_ACCESS_KEY_ID')
     sk = os.getenv('ALIBABA_CLOUD_ACCESS_KEY_SECRET')
     sts = os.getenv('ALIBABA_CLOUD_SECURITY_TOKEN')
@@ -193,8 +285,59 @@ def get_aksk():
     return ak, sk, sts
 
 
+def get_credentials():
+    """
+    Get credentials using the default credential chain.
+    This supports multiple authentication modes including:
+    - Static AK/SK from environment variables
+    - STS Token from environment variables
+    - CloudSSO from aliyun CLI config
+    - ECS RAM Role
+    - OIDC
+    - RAM Role ARN
+
+    Returns:
+        tuple: (access_key_id, access_key_secret, security_token)
+    """
+    from alibabacloud_credentials.client import Client as CredentialClient
+    from alibabacloud_credentials.models import Config as CredentialConfig
+
+    header = current_request_headers.get()
+    if header and (header.get("ak") or header.get("sk") or header.get("sts")):
+        return header.get("ak"), header.get("sk"), header.get("sts")
+
+    ak = os.getenv('ALIBABA_CLOUD_ACCESS_KEY_ID')
+    sk = os.getenv('ALIBABA_CLOUD_ACCESS_KEY_SECRET')
+    if ak and sk:
+        sts = os.getenv('ALIBABA_CLOUD_SECURITY_TOKEN')
+        return ak, sk, sts
+
+    try:
+        profile_name = os.getenv('ALIBABA_CLOUD_PROFILE')
+        if profile_name:
+            from alibabacloud_credentials.provider import CLIProfileCredentialsProvider
+            cred_provider = CLIProfileCredentialsProvider(profile_name=profile_name)
+            credential = cred_provider.get_credentials()
+            return (
+                credential.get_access_key_id(),
+                credential.get_access_key_secret(),
+                credential.get_security_token()
+            )
+        else:
+            cred_config = CredentialConfig()
+            cred_client = CredentialClient(cred_config)
+            credential = cred_client.get_credential()
+            return (
+                credential.access_key_id,
+                credential.access_key_secret,
+                credential.security_token
+            )
+    except Exception:
+        return None, None, None
+
+
 def get_rds_client(region_id: str):
-    ak, sk, sts = get_aksk()
+    ak, sk, sts = get_credentials()
     config = Config(
         access_key_id=ak,
         access_key_secret=sk,
@@ -217,7 +360,7 @@ def get_vpc_client(region_id: str) -> VpcClient:
     Returns:
         VpcClient: The VPC client instance for the specified region.
     """
-    ak, sk, sts = get_aksk()
+    ak, sk, sts = get_credentials()
     config = Config(
         access_key_id=ak,
         access_key_secret=sk,
@@ -231,7 +374,7 @@ def get_vpc_client(region_id: str) -> VpcClient:
 
 
 def get_bill_client(region_id: str):
-    ak, sk, sts = get_aksk()
+    ak, sk, sts = get_credentials()
     config = Config(
         access_key_id=ak,
         access_key_secret=sk,
@@ -246,7 +389,7 @@ def get_bill_client(region_id: str):
 
 
 def get_das_client():
-    ak, sk, sts = get_aksk()
+    ak, sk, sts = get_credentials()
     config = Config(
         access_key_id=ak,
         access_key_secret=sk,
